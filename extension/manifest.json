@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "Chaos Control",
+  "version": "0.1.0",
+  "description": "A keyboard launcher for tabs, history, bookmarks and tab actions.",
+  "permissions": [
+    "tabs",
+    "bookmarks",
+    "history",
+    "favicon",
+    "search",
+    "scripting",
+    "activeTab"
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Open Chaos Control",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+K",
+        "mac": "Command+K"
+      }
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "launcher.html"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'"
+  }
+}
