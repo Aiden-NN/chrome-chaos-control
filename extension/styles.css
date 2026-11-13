@@ -125,7 +125,7 @@ input::placeholder { color: var(--text-3); }
 footer { position: relative; border-top: 1px solid var(--line-soft); min-height: 46px; padding: 11px 20px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--text-3); font-size: 11.5px; background: oklch(0.18 0.04 290); }
 #keyboard-help { white-space: nowrap; }
 kbd { display: inline-block; min-width: 18px; text-align: center; font: inherit; font-size: 10.5px; color: var(--text-2); background: var(--ink-2); border: 1px solid var(--line); box-shadow: 0 1.5px 0 var(--line); border-radius: 5px; padding: 0 4px; margin-right: 2px; line-height: 16px; }
-#web-hint, #folder-hint { margin-right: 4px; }
+#tab-hint, #web-hint, #folder-hint { margin-right: 4px; }
 .palette[data-mode="save"] footer { flex-wrap: wrap; }
 .palette[data-mode="save"] #keyboard-help { white-space: normal; line-height: 1.9; }
 #count { white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -156,7 +156,7 @@ body.popup { width: 640px; min-height: 0; background: var(--ink-1); }
 .popup header, .popup .page-hint { display: none; }
 .popup .palette { border: 0; border-radius: 0; box-shadow: none; }
 
-@media (max-width: 520px) { .tagline, #web-hint { display: none; } input { font-size: 20px; } .launcher { width: calc(100vw - 24px); } }
+@media (max-width: 520px) { .tagline, #web-hint, #tab-hint { display: none; } input { font-size: 20px; } .launcher { width: calc(100vw - 24px); } }
 
 @media (prefers-reduced-motion: no-preference) {
   .palette { animation: arrive .42s var(--ease-out) both; }

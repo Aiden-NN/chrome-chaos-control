@@ -91,12 +91,21 @@ export async function openItem(api, request) {
     const text = typeof request.text === 'string' ? request.text.trim() : '';
     if (!text) throw new Error('Type something to search for.');
     if (!api.search?.query) throw new Error('Web search isn’t available in this browser. Reload the extension to grant the search permission.');
+    if (request.newTab) {
+      const tab = await api.tabs.create({ url: 'about:blank', active: false });
+      await api.search.query({ text, tabId: tab.id });
+      return;
+    }
     const launcher = findLauncher(api, await api.tabs.query({}), request.launcherTabId);
     await api.search.query(launcher ? { text, tabId: launcher.id } : { text, disposition: 'NEW_TAB' });
     return;
   }
   if (request.type !== 'open') throw new Error('Unknown action.');
   const url = navigableUrl(request.url);
+  if (request.newTab) {
+    await api.tabs.create({ url, active: false });
+    return;
+  }
   const tabs = await api.tabs.query({});
   const existing = tabs.find(tab => urlKey(tab.url || tab.pendingUrl) === urlKey(url));
   if (existing) {

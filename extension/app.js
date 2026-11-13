@@ -22,8 +22,8 @@ const failures = { tabs: 'Tabs could not be loaded.', history: 'History could no
 const stale = new Set(Object.keys(failures));
 const indicator = document.createElement('div');
 indicator.className = 'indicator';
-const rowLayout = new ResizeObserver(() => moveIndicator($('results').querySelector('[aria-selected="true"]')));
 indicator.setAttribute('aria-hidden', 'true');
+const rowLayout = new ResizeObserver(() => moveIndicator($('results').querySelector('[aria-selected="true"]')));
 let launcherTabId;
 const requests = Object.fromEntries(Object.keys(failures).map(name => [name, { generation: 0, pending: null, timer: null, error: '' }]));
 let selectedItem = null;
@@ -202,6 +202,7 @@ function render(preserveScroll = false) {
     $('mode-label').title = modeLabel;
     replay($('mode-label'), 'swap');
   }
+  $('tab-hint').hidden = !['all', 'history', 'bookmarks'].includes(state.mode);
   $('web-hint').hidden = state.mode !== 'all';
   $('save-hint').hidden = state.mode !== 'save';
   $('folder-hint').hidden = state.mode !== 'save';
@@ -360,8 +361,9 @@ function back() {
   input.focus({ preventScroll: true });
 }
 
-async function choose(item) {
+async function choose(item, newTab = false) {
   if (!item || state.busy) return;
+  const inNewTab = newTab && item.kind !== 'action' && (item.kind === 'search' || !!item.url);
   if (item.kind === 'action' && !['duplicate', 'pin', 'mute', 'close-others', 'update', 'shortcut'].includes(item.id)) return setMode(item.id);
   if (item.kind === 'folder') {
     state.folders.push(item);
@@ -378,16 +380,18 @@ async function choose(item) {
   try {
     const result = await chrome.runtime.sendMessage({
       channel: 'chaos-control',
-      type: item.id === 'shortcut' ? 'open' : item.kind === 'action' ? item.id : item.kind === 'search' ? 'search' : item.tabId !== undefined ? 'activate' : 'open',
+      type: item.id === 'shortcut' ? 'open' : item.kind === 'action' ? item.id : item.kind === 'search' ? 'search' : item.tabId !== undefined && !inNewTab ? 'activate' : 'open',
       tabId: item.tabId,
       url: item.url,
       text: item.query,
       launcherTabId,
       overlay,
+      newTab: inNewTab,
     });
     if (result?.error === 'Unknown action.') throw new Error('Reload Chaos Control in your browser’s extensions manager, then reopen it to use this action.');
     if (!result?.ok) throw new Error(result?.error || 'Could not open this item. Please try again.');
-    dismiss();
+    if (inNewTab) selectedItem = null;
+    else dismiss();
   } catch (error) {
     notice(error.message);
   } finally {
@@ -630,6 +634,11 @@ input.addEventListener('keydown', event => {
     state.autocomplete = false;
     if (releaseCompletion()) render();
     createFolder();
+  } else if (event.key === 'Enter' && event.altKey && !event.metaKey && !event.ctrlKey) {
+    event.preventDefault();
+    state.autocomplete = false;
+    if (releaseCompletion()) render();
+    choose(state.items[state.selected], true);
   } else if (event.key === 'Enter') {
     event.preventDefault();
     state.autocomplete = false;
