@@ -10,10 +10,10 @@ const newTab = view === 'tab';
 document.documentElement.classList.toggle('overlay', overlay);
 document.body.classList.toggle('popup', popup);
 document.body.classList.toggle('page', !popup && !overlay);
-const state = { query: '', completion: '', autocomplete: false, composing: false, tabs: [], history: [], bookmarks: [], current: null, mode: 'all', folders: [], selected: 0, items: [], typed: {}, busy: false, loading: true, motion: null };
+const state = { query: '', completion: '', autocomplete: false, composing: false, tabs: [], history: [], bookmarks: [], current: null, shortcut: undefined, mode: 'all', folders: [], selected: 0, items: [], typed: {}, busy: false, loading: true, motion: null };
 const labels = { tab: 'Open tabs', pinned: 'Pinned tabs', history: 'Suggested URLs', bookmark: 'Bookmarks', folder: 'Bookmarks', action: 'Actions', url: 'Go to', search: 'Web' };
 const icons = { tab: 'tab', pinned: 'pin', history: 'history', bookmark: 'bookmark', folder: 'folder', url: 'globe', search: 'search' };
-const actionIcons = { pin: 'pin', bookmarks: 'bookmark', history: 'history', save: 'bookmark', duplicate: 'duplicate', 'close-others': 'close', update: 'update', mute: 'volume-off' };
+const actionIcons = { pin: 'pin', bookmarks: 'bookmark', history: 'history', save: 'bookmark', duplicate: 'duplicate', 'close-others': 'close', update: 'update', mute: 'volume-off', shortcut: 'keyboard' };
 const tones = { tab: 'coral', pinned: 'gold', history: 'sky', bookmark: 'teal', folder: 'teal', url: 'violet', search: 'sky', action: 'coral' };
 const actionTones = { pin: 'gold', bookmarks: 'teal', history: 'sky', save: 'teal' };
 const faviconKinds = new Set(['tab', 'pinned', 'history', 'bookmark']);
@@ -49,7 +49,9 @@ function notice(message, tone = 'warning') {
 }
 
 function withTabState(item) {
-  if (item.kind !== 'action' || !state.current) return item;
+  if (item.kind !== 'action') return item;
+  if (item.id === 'shortcut' && state.shortcut !== undefined) return { ...item, detail: state.shortcut ? `Currently ${state.shortcut} — change it in browser settings` : 'No shortcut set — choose one in browser settings' };
+  if (!state.current) return item;
   const name = state.current.title || state.current.url;
   if (item.id === 'pin') return state.current.pinned ? { ...item, title: 'Unpin tab', detail: `Unpin “${name}”` } : { ...item, title: 'Pin tab', detail: `Pin “${name}”` };
   if (item.id === 'mute') return state.current.mutedInfo?.muted ? { ...item, title: 'Unmute tab', detail: `Unmute “${name}”`, icon: 'volume' } : { ...item, title: 'Mute tab', detail: `Mute “${name}”`, icon: 'volume-off' };
@@ -167,7 +169,11 @@ function render(preserveScroll = false) {
     historyPaging.order = matches.map(item => item.id);
   }
   state.typed = state.mode === 'all' ? typedItems(state.query) : {};
-  const items = [state.typed.url, ...matches, state.typed.search].filter(Boolean).map(withTabState);
+  const items = [state.typed.url, ...matches].filter(Boolean).map(withTabState);
+  if (state.typed.search) {
+    const index = items.findIndex(item => item.kind === 'history' || item.fuzzy);
+    items.splice(index < 0 ? items.length : index, 0, state.typed.search);
+  }
   if (selectedItem) {
     let index = items.findIndex(item => item.id === selectedItem.id);
     if (index < 0) {
@@ -314,6 +320,7 @@ function setMode(mode) {
   render();
   input.focus({ preventScroll: true });
   if (mode === 'save' || mode === 'actions') resolveCurrent();
+  if (mode === 'actions') resolveShortcut();
   load();
 }
 
@@ -326,6 +333,16 @@ async function resolveCurrent() {
   if (state.mode !== 'save' && state.mode !== 'actions') return;
   if (state.mode === 'save') notice(state.current ? '' : 'There’s no page to bookmark in this window.');
   render();
+}
+
+async function resolveShortcut() {
+  try {
+    const commands = await chrome.commands.getAll();
+    state.shortcut = commands.find(command => command.name === '_execute_action')?.shortcut || '';
+  } catch {
+    return;
+  }
+  if (state.mode === 'actions') render(true);
 }
 
 function back() {
@@ -346,7 +363,7 @@ function back() {
 
 async function choose(item) {
   if (!item || state.busy) return;
-  if (item.kind === 'action' && !['duplicate', 'pin', 'mute', 'close-others', 'update'].includes(item.id)) return setMode(item.id);
+  if (item.kind === 'action' && !['duplicate', 'pin', 'mute', 'close-others', 'update', 'shortcut'].includes(item.id)) return setMode(item.id);
   if (item.kind === 'folder') {
     state.folders.push(item);
     state.selected = 0;
@@ -362,7 +379,7 @@ async function choose(item) {
   try {
     const result = await chrome.runtime.sendMessage({
       channel: 'chaos-control',
-      type: item.kind === 'action' ? item.id : item.kind === 'search' ? 'search' : item.tabId !== undefined ? 'activate' : 'open',
+      type: item.id === 'shortcut' ? 'open' : item.kind === 'action' ? item.id : item.kind === 'search' ? 'search' : item.tabId !== undefined ? 'activate' : 'open',
       tabId: item.tabId,
       url: item.url,
       text: item.query,

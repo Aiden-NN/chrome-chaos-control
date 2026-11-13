@@ -6,6 +6,7 @@ export const ACTIONS = [
   { id: 'mute', kind: 'action', title: 'Mute tab', detail: 'Mute or unmute the current tab' },
   { id: 'duplicate', kind: 'action', title: 'Duplicate current tab', detail: 'Create and switch to a copy of the current tab' },
   { id: 'close-others', kind: 'action', title: 'Close other tabs', detail: 'Keep the current tab and close all other tabs in this window' },
+  { id: 'shortcut', kind: 'action', title: 'Keyboard shortcut', detail: 'Change the hotkey that opens this launcher', url: 'chrome://extensions/shortcuts' },
   { id: 'update', kind: 'action', title: 'Update', detail: 'Reload Chaos Control to apply the latest local changes' },
 ];
 
@@ -122,6 +123,7 @@ export function completionFor(query, item) {
 }
 
 export function resultAction(item, openUrls = new Set()) {
+  if (item.kind === 'action' && item.id === 'shortcut') return { icon: 'open', label: 'Change shortcut in browser settings' };
   if (item.kind === 'action' && item.id === 'update') return { icon: 'update', label: 'Reload extension' };
   if (item.kind === 'action' && item.id === 'close-others') return { icon: 'close', label: 'Close other tabs' };
   if (item.kind === 'action' && item.id === 'duplicate') return { icon: 'duplicate', label: 'Duplicate current tab' };
