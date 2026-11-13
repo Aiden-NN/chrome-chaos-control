@@ -23,6 +23,7 @@ const failures = { tabs: 'Tabs could not be loaded.', history: 'History could no
 const stale = new Set(Object.keys(failures));
 const indicator = document.createElement('div');
 indicator.className = 'indicator';
+const rowLayout = new ResizeObserver(() => moveIndicator($('results').querySelector('[aria-selected="true"]')));
 indicator.setAttribute('aria-hidden', 'true');
 let launcherTabId;
 const requests = Object.fromEntries(Object.keys(failures).map(name => [name, { generation: 0, pending: null, timer: null, error: '' }]));
@@ -301,6 +302,8 @@ function render(preserveScroll = false) {
     fragment.append(row);
   }
   $('results').replaceChildren(fragment);
+  rowLayout.disconnect();
+  for (const child of $('results').children) if (child !== indicator) rowLayout.observe(child);
   select(state.selected);
   if (preserveScroll) results.scrollTop = scrollTop;
   if (state.autocomplete && ['all', 'history'].includes(state.mode)) suggest(state.items[state.selected]);
