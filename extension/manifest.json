@@ -29,9 +29,6 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "chrome_url_overrides": {
-    "newtab": "newtab.html"
-  },
   "commands": {
     "_execute_action": {
       "suggested_key": {

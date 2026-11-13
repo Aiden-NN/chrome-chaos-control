@@ -1,4 +1,4 @@
-import { completionFor, resultAction, urlKey, faviconUrl, flattenBookmarks, googleSearchUrl, historyItems, hostOf, searchItems, tabItems, typedItems, HISTORY_FETCH, HISTORY_LIMIT } from './search.js';
+import { completionFor, resultAction, urlKey, faviconUrl, flattenBookmarks, googleSearchUrl, historyItems, hostOf, searchItems, tabItems, typedItems, RECENT_FETCH, HISTORY_FETCH, HISTORY_LIMIT } from './search.js';
 import { currentTab } from './navigation.js';
 
 const $ = id => document.getElementById(id);
@@ -6,11 +6,10 @@ const input = $('query');
 const view = new URLSearchParams(location.search).get('view');
 const popup = view === 'popup';
 const overlay = view === 'overlay';
-const newTab = view === 'tab';
 document.documentElement.classList.toggle('overlay', overlay);
 document.body.classList.toggle('popup', popup);
 document.body.classList.toggle('page', !popup && !overlay);
-const state = { query: '', completion: '', autocomplete: false, composing: false, tabs: [], history: [], bookmarks: [], current: null, shortcut: undefined, mode: 'all', folders: [], selected: 0, items: [], typed: {}, busy: false, loading: true, motion: null };
+const state = { query: '', completion: '', autocomplete: false, composing: false, tabs: [], history: [], recent: [], bookmarks: [], current: null, shortcut: undefined, mode: 'all', folders: [], selected: 0, items: [], typed: {}, busy: false, loading: true, motion: null };
 const labels = { tab: 'Open tabs', pinned: 'Pinned tabs', history: 'Suggested URLs', bookmark: 'Bookmarks', folder: 'Bookmarks', action: 'Actions', url: 'Go to', search: 'Web' };
 const icons = { tab: 'tab', pinned: 'pin', history: 'history', bookmark: 'bookmark', folder: 'folder', url: 'globe', search: 'search' };
 const actionIcons = { pin: 'pin', bookmarks: 'bookmark', history: 'history', save: 'bookmark', duplicate: 'duplicate', 'close-others': 'close', update: 'update', mute: 'volume-off', shortcut: 'keyboard' };
@@ -35,11 +34,6 @@ const historyPaging = { limit: HISTORY_FETCH, hasMore: false, extending: false, 
 function dismiss() {
   if (overlay) parent.postMessage({ chaosControl: 'close' }, '*');
   else if (popup) window.close();
-}
-
-function leave() {
-  if (newTab && launcherTabId !== undefined) chrome.tabs.remove(launcherTabId);
-  else dismiss();
 }
 
 function notice(message, tone = 'warning') {
@@ -169,9 +163,12 @@ function render(preserveScroll = false) {
     historyPaging.order = matches.map(item => item.id);
   }
   state.typed = state.mode === 'all' ? typedItems(state.query) : {};
-  const items = [state.typed.url, ...matches].filter(Boolean).map(withTabState);
+  const goTo = [state.typed.url, ...matches.filter(item => item.domain)].filter(Boolean);
+  const rest = matches.filter(item => !item.domain);
+  const tabsEnd = rest.findLastIndex(item => !item.fuzzy && (item.kind === 'tab' || item.kind === 'pinned')) + 1;
+  const items = [...rest.slice(0, tabsEnd), ...goTo, ...rest.slice(tabsEnd)].map(withTabState);
   if (state.typed.search) {
-    const index = items.findIndex(item => item.kind === 'history' || item.fuzzy);
+    const index = items.findIndex(item => !item.domain && (item.kind === 'history' || item.fuzzy));
     items.splice(index < 0 ? items.length : index, 0, state.typed.search);
   }
   if (selectedItem) {
@@ -237,7 +234,7 @@ function render(preserveScroll = false) {
   fragment.append(indicator);
   let previousGroup;
   for (const [index, item] of items.entries()) {
-    const group = state.mode === 'history' ? 'History' : state.mode === 'save' ? 'Save to folder' : item.fuzzy ? 'Similar tabs' : state.mode === 'all' && item.kind === 'pinned' ? labels.tab : labels[item.kind];
+    const group = state.mode === 'history' ? 'History' : state.mode === 'save' ? 'Save to folder' : item.domain ? labels.url : item.fuzzy ? 'Similar tabs' : state.mode === 'all' && item.kind === 'pinned' ? labels.tab : labels[item.kind];
     if (group !== previousGroup) {
       const label = document.createElement('div');
       label.className = 'group-label';
@@ -274,7 +271,7 @@ function render(preserveScroll = false) {
     copy.append(title);
     if (item.kind === 'history' && state.mode !== 'history') {
       const host = hostOf(item.url);
-      if (host && item.title !== item.url) {
+      if (host && item.title !== item.url && item.title !== host) {
         const origin = document.createElement('span');
         origin.className = 'host';
         origin.textContent = ` — ${host}`;
@@ -357,7 +354,7 @@ function back() {
     render();
   } else if (['bookmarks', 'history', 'save'].includes(state.mode)) setMode('actions');
   else if (state.mode === 'actions') setMode('all');
-  else leave();
+  else dismiss();
   input.focus({ preventScroll: true });
 }
 
@@ -404,8 +401,7 @@ async function save(folder) {
     const result = await chrome.runtime.sendMessage({ channel: 'chaos-control', type: 'bookmark', tabId: state.current.id, parentId: folder.bookmarkId });
     if (!result?.ok) throw new Error(result?.error || 'Could not save this bookmark. Please try again.');
     notice(`Saved to ${[folder.path, folder.title].filter(Boolean).join(' / ')}`, 'success');
-    const page = state.current.id;
-    setTimeout(() => (newTab ? chrome.runtime.sendMessage({ channel: 'chaos-control', type: 'activate', tabId: page, launcherTabId }) : dismiss()), 700);
+    setTimeout(dismiss, 700);
   } catch (error) {
     notice(error.message);
   } finally {
@@ -521,6 +517,16 @@ async function loadSource(name) {
   }
 }
 
+async function loadRecent() {
+  try {
+    const entries = await chrome.history.search({ text: '', maxResults: RECENT_FETCH, startTime: 0 });
+    state.recent = historyItems(entries, chrome.runtime.getURL('launcher.html'));
+    if (state.mode === 'all' && state.query.trim()) render();
+  } catch {
+    state.recent = [];
+  }
+}
+
 function load() {
   if (!globalThis.chrome?.bookmarks || !globalThis.chrome?.tabs) {
     state.loading = false;
@@ -528,6 +534,7 @@ function load() {
     notice('Load the extension folder in your browser to search real tabs and history.');
     return;
   }
+  if (globalThis.chrome?.history) loadRecent();
   for (const name of needed[state.mode]) loadSource(name);
 }
 

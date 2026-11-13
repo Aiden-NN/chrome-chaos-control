@@ -12,6 +12,7 @@ export const ACTIONS = [
 
 export const HISTORY_LIMIT = 11;
 export const HISTORY_FETCH = 100;
+export const RECENT_FETCH = 5000;
 export const FUZZY_RUN = 3;
 
 export const URL_SCHEMES = ['https:', 'http:', 'file:', 'ftp:', 'chrome:', 'chrome-extension:', 'about:'];
@@ -88,7 +89,7 @@ const fields = new WeakMap();
 function fieldsOf(item) {
   let value = fields.get(item);
   if (!value) {
-    value = { title: normalize(item.title), url: normalize(item.url).replace(/^[a-z][a-z\d+.-]*:\/\/(www\.)?/, ''), path: normalize(item.path) };
+    value = { title: normalize(item.title), url: normalize(item.url).replace(/^[a-z][a-z\d+.-]*:\/\/(www\.)?/, ''), path: normalize(item.path), host: hostOf(item.url) };
     fields.set(item, value);
   }
   return value;
@@ -180,15 +181,26 @@ export function exactMatch(item, query) {
 
 export function matchScore(item, query) {
   const tokens = Array.isArray(query) ? query : tokenize(query);
-  const { title, url, path } = fieldsOf(item);
+  const { title, url, path, host } = fieldsOf(item);
   return tokens.reduce((score, token) => score + Math.min(
+    host.startsWith(token) ? 0.5 : Infinity,
     tokenScore(title, token),
     tokenScore(url, token) + 2,
     tokenScore(path, token) + 3,
   ), 0);
 }
 
-export function searchItems({ tabs = [], bookmarks = [], history = [], query = '', mode = 'all', folderId = null, limit = 60 }) {
+function latestVisit(recent, history, open, tokens, query) {
+  if (tokens.length !== 1) return null;
+  const visited = item => /^https?:/i.test(item.url) && hostOf(item.url).startsWith(tokens[0]) && !open.has(urlKey(item.url));
+  const match = recent.find(visited) || history.find(visited);
+  if (!match) return null;
+  const typed = typedUrl(query);
+  if (typed && hostOf(typed) === hostOf(match.url)) return null;
+  return { ...match, domain: true };
+}
+
+export function searchItems({ tabs = [], bookmarks = [], history = [], recent = [], query = '', mode = 'all', folderId = null, limit = 60 }) {
   const tokens = tokenize(mode === 'history' ? query.trim().replace(/^(?:[a-z][a-z\d+.-]*:\/\/)?(?:www\.)?/i, '') : query);
   const rank = (list, keepOrder = false) => list.map((item, index) => ({ item, index, score: matchScore(item, tokens) }))
     .filter(match => Number.isFinite(match.score))
@@ -204,9 +216,12 @@ export function searchItems({ tabs = [], bookmarks = [], history = [], query = '
     const exact = matches.filter(match => exactMatch(match.item, tokens)).map(match => match.item);
     const similar = matches.filter(match => !exactMatch(match.item, tokens)).map(match => ({ ...match.item, fuzzy: true }));
     const open = new Set(tabs.map(item => urlKey(item.url)).filter(Boolean));
-    const suggested = rank(history.filter(item => !open.has(urlKey(item.url)) && exactMatch(item, tokens)))
+    const visit = latestVisit(recent, history, open, tokens, query);
+    const ids = new Set(history.map(item => item.id));
+    const pool = [...history, ...recent.filter(item => !ids.has(item.id))];
+    const suggested = rank(pool.filter(item => exactMatch(item, tokens) && !open.has(urlKey(item.url)) && urlKey(item.url) !== urlKey(visit?.url)))
       .slice(0, HISTORY_LIMIT).map(match => match.item);
-    const items = [...exact, ...suggested, ...similar];
+    const items = [...(visit ? [visit] : []), ...exact, ...suggested, ...similar];
     return { items, total: items.length };
   }
   let candidates;
