@@ -6,7 +6,6 @@ const input = $('query');
 const view = new URLSearchParams(location.search).get('view');
 const popup = view === 'popup';
 const overlay = view === 'overlay';
-document.documentElement.classList.toggle('overlay', overlay);
 document.body.classList.toggle('popup', popup);
 document.body.classList.toggle('page', !popup && !overlay);
 const state = { query: '', completion: '', autocomplete: false, composing: false, tabs: [], history: [], recent: [], bookmarks: [], current: null, shortcut: undefined, mode: 'all', folders: [], selected: 0, items: [], typed: {}, busy: false, loading: true, motion: null };

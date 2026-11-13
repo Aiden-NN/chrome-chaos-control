@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check extension/overlay.js && node --check extension/app.js && node --check extension/search.js && node --check extension/background.js && node --check extension/navigation.js"
+    "check": "node --check extension/overlay.js && node --check extension/app.js && node --check extension/search.js && node --check extension/background.js && node --check extension/navigation.js && node --check extension/view.js"
   }
 }
