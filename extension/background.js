@@ -1,5 +1,8 @@
 import { openItem } from './navigation.js';
 
+chrome.runtime.onStartup.addListener(() => {});
+setInterval(() => chrome.runtime.getPlatformInfo(), 20_000);
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id || request?.channel !== 'chaos-control') return;
   if (request.type === 'overlay-failed') {

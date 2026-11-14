@@ -29,6 +29,9 @@ const requests = Object.fromEntries(Object.keys(failures).map(name => [name, { g
 let selectedItem = null;
 let loaded = false;
 let tabTitlesChanged = false;
+let recentStale = true;
+let recentTimer = null;
+let regainFocus = false;
 const historyPaging = { limit: HISTORY_FETCH, hasMore: false, extending: false, order: null };
 
 function dismiss() {
@@ -97,7 +100,8 @@ function suggest(item) {
 }
 
 function attachFavicon(symbol, src) {
-  if (faviconState.get(src) === false) return;
+  const known = faviconState.get(src);
+  if (known === false) return;
   const image = new Image();
   image.alt = '';
   image.draggable = false;
@@ -107,9 +111,17 @@ function attachFavicon(symbol, src) {
     symbol.replaceChildren(image);
   };
   image.addEventListener('load', show, { once: true });
-  image.addEventListener('error', () => faviconState.set(src, false), { once: true });
+  image.addEventListener('error', () => {
+    faviconState.set(src, false);
+    image.remove();
+  }, { once: true });
+  if (!known) {
+    image.loading = 'lazy';
+    image.decoding = 'async';
+    symbol.append(image);
+  }
   image.src = src;
-  if (faviconState.get(src) && image.complete) show();
+  if (known && image.complete) show();
 }
 
 function icon(name) {
@@ -519,18 +531,33 @@ async function loadSource(name) {
       request.pending = null;
       updateLoadState();
       render(state.mode === 'history');
+      if (name === 'tabs') scheduleRecent();
     }
   }
 }
 
 async function loadRecent() {
+  recentStale = false;
   try {
     const entries = await chrome.history.search({ text: '', maxResults: RECENT_FETCH, startTime: 0 });
     state.recent = historyItems(entries, chrome.runtime.getURL('launcher.html'));
     if (state.mode === 'all' && state.query.trim()) render();
   } catch {
     state.recent = [];
+    recentStale = true;
   }
+}
+
+function scheduleRecent() {
+  if (!globalThis.chrome?.history || state.mode !== 'all' || !recentStale || recentTimer !== null) return;
+  recentTimer = requestIdleCallback(loadRecentNow, { timeout: 300 });
+}
+
+function loadRecentNow() {
+  if (recentTimer === null) return;
+  cancelIdleCallback(recentTimer);
+  recentTimer = null;
+  if (state.mode === 'all' && recentStale) loadRecent();
 }
 
 function load() {
@@ -540,7 +567,7 @@ function load() {
     notice('Load the extension folder in your browser to search real tabs and history.');
     return;
   }
-  if (globalThis.chrome?.history) loadRecent();
+  if (!stale.has('tabs')) scheduleRecent();
   for (const name of needed[state.mode]) loadSource(name);
 }
 
@@ -573,6 +600,7 @@ function refreshSearch() {
 }
 
 input.addEventListener('input', event => {
+  loadRecentNow();
   state.query = input.value;
   state.completion = '';
   state.autocomplete = !event.isComposing && !state.composing && !event.inputType?.startsWith('delete') && input.selectionStart === input.value.length;
@@ -691,9 +719,13 @@ for (const event of ['onCreated', 'onRemoved', 'onChanged', 'onMoved', 'onChildr
   globalThis.chrome?.bookmarks?.[event]?.addListener(() => invalidate('bookmarks'));
 }
 globalThis.chrome?.history?.onVisited?.addListener(() => {
+  recentStale = true;
   if (!hasSearchQuery()) invalidate('history');
 });
-globalThis.chrome?.history?.onVisitRemoved?.addListener(() => invalidate('history'));
+globalThis.chrome?.history?.onVisitRemoved?.addListener(() => {
+  recentStale = true;
+  invalidate('history');
+});
 document.addEventListener('mousedown', event => {
   if (overlay && !event.target.closest('.palette')) dismiss();
 });
@@ -706,8 +738,13 @@ if (overlay) {
     input.focus({ preventScroll: true });
   });
 }
+window.addEventListener('blur', () => {
+  regainFocus = true;
+});
 window.addEventListener('focus', () => {
   input.focus({ preventScroll: true });
+  if (!regainFocus) return;
+  regainFocus = false;
   invalidate('tabs', 'history');
 });
 input.focus({ preventScroll: true });

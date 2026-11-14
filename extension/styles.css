@@ -96,7 +96,7 @@ input::placeholder { color: var(--text-3); }
 @property --row-tone { syntax: '<color>'; inherits: true; initial-value: oklch(0.78 0.14 35); }
 
 .group-label { position: relative; padding: 15px 12px 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
-.result { --kind: var(--coral); position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 11px; cursor: pointer; }
+.result { --kind: var(--coral); position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 11px; cursor: pointer; content-visibility: auto; contain-intrinsic-size: auto 54px; }
 .result[data-kind="pinned"], .result[data-action="pin"] { --kind: var(--gold); }
 .result[data-kind="bookmark"], .result[data-kind="folder"], .result[data-action="bookmarks"] { --kind: var(--teal); }
 .result[data-kind="url"] { --kind: var(--violet); }
@@ -108,6 +108,7 @@ input::placeholder { color: var(--text-3); }
 }
 .symbol.favicon, .result[aria-selected="true"] .symbol.favicon { background: none; box-shadow: none; }
 .symbol img { width: 20px; height: 20px; object-fit: contain; }
+.symbol:not(.favicon) img { position: absolute; opacity: 0; pointer-events: none; }
 .result[aria-selected="true"] .symbol { color: var(--ink-0); background: var(--kind); box-shadow: 0 4px 12px -4px color-mix(in oklch, var(--kind) 70%, transparent); }
 .copy { min-width: 0; flex: 1; }
 .title { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; font-weight: 520; color: var(--text); letter-spacing: -0.005em; }

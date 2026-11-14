@@ -36,6 +36,14 @@
 
   let closeTimer;
   let readyTimer;
+  let focused = false;
+
+  function handOff() {
+    if (focused || frame.classList.contains('closing')) return;
+    focused = true;
+    frame.focus({ preventScroll: true });
+    frame.contentWindow.postMessage({ chaosControl: 'focus' }, origin);
+  }
 
   function close(immediate = false) {
     if (frame.classList.contains('closing') && immediate !== true) return;
@@ -60,8 +68,10 @@
 
   function onMessage(event) {
     if (event.source !== frame.contentWindow || event.origin !== origin) return;
-    if (event.data?.chaosControl === 'ready') clearTimeout(readyTimer);
-    else if (event.data?.chaosControl === 'close') close();
+    if (event.data?.chaosControl === 'ready') {
+      clearTimeout(readyTimer);
+      handOff();
+    } else if (event.data?.chaosControl === 'close') close();
   }
 
   addEventListener('message', onMessage);
@@ -71,11 +81,7 @@
     event.preventDefault();
     close();
   });
-  frame.addEventListener('load', () => {
-    if (frame.classList.contains('closing')) return;
-    frame.focus({ preventScroll: true });
-    frame.contentWindow.postMessage({ chaosControl: 'focus' }, origin);
-  });
+  frame.addEventListener('load', handOff);
   document.documentElement.append(host);
   dialog.showModal();
   readyTimer = setTimeout(() => {
