@@ -34,6 +34,11 @@ let recentTimer = null;
 let regainFocus = false;
 const historyPaging = { limit: HISTORY_FETCH, hasMore: false, extending: false, order: null };
 
+function claimFocus() {
+  input.focus({ preventScroll: true });
+  if (overlay && document.hasFocus() && document.activeElement === input) parent.postMessage({ chaosControl: 'focused' }, '*');
+}
+
 function dismiss() {
   if (overlay) parent.postMessage({ chaosControl: 'close' }, '*');
   else if (popup) window.close();
@@ -735,14 +740,14 @@ if (!popup && !overlay && globalThis.chrome?.tabs?.getCurrent) {
 if (overlay) {
   window.addEventListener('message', event => {
     if (event.source !== parent || event.data?.chaosControl !== 'focus') return;
-    input.focus({ preventScroll: true });
+    claimFocus();
   });
 }
 window.addEventListener('blur', () => {
   regainFocus = true;
 });
 window.addEventListener('focus', () => {
-  input.focus({ preventScroll: true });
+  claimFocus();
   if (!regainFocus) return;
   regainFocus = false;
   invalidate('tabs', 'history');

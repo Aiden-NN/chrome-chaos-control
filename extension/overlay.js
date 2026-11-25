@@ -36,18 +36,29 @@
 
   let closeTimer;
   let readyTimer;
-  let focused = false;
+  let focusTimers = [];
+  let focusConfirmed = false;
 
   function handOff() {
-    if (focused || frame.classList.contains('closing')) return;
-    focused = true;
+    if (focusConfirmed || frame.classList.contains('closing')) return;
     frame.focus({ preventScroll: true });
-    frame.contentWindow.postMessage({ chaosControl: 'focus' }, origin);
+    frame.contentWindow?.postMessage({ chaosControl: 'focus' }, origin);
+  }
+
+  function scheduleHandOff() {
+    for (const delay of [0, 50, 150, 400, 1000]) focusTimers.push(setTimeout(handOff, delay));
+  }
+
+  function stopHandOff() {
+    focusTimers.forEach(clearTimeout);
+    focusTimers = [];
+    removeEventListener('focus', handOff);
   }
 
   function close(immediate = false) {
     if (frame.classList.contains('closing') && immediate !== true) return;
     clearTimeout(closeTimer);
+    stopHandOff();
     clearTimeout(readyTimer);
     removeEventListener('message', onMessage);
     host.removeEventListener('chaos-control-close', close);
@@ -71,6 +82,9 @@
     if (event.data?.chaosControl === 'ready') {
       clearTimeout(readyTimer);
       handOff();
+    } else if (event.data?.chaosControl === 'focused') {
+      focusConfirmed = true;
+      stopHandOff();
     } else if (event.data?.chaosControl === 'close') close();
   }
 
@@ -82,8 +96,10 @@
     close();
   });
   frame.addEventListener('load', handOff);
+  addEventListener('focus', handOff);
   document.documentElement.append(host);
   dialog.showModal();
+  scheduleHandOff();
   readyTimer = setTimeout(() => {
     close(true);
     chrome.runtime.sendMessage({ channel: 'chaos-control', type: 'overlay-failed' });
