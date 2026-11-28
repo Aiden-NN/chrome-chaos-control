@@ -675,15 +675,14 @@ input.addEventListener('keydown', event => {
   } else if (event.key === 'Enter') {
     event.preventDefault();
     state.autocomplete = false;
+    const entered = input.value.trim();
+    const item = state.items[state.selected];
+    const completed = state.completion && input.value === state.query + state.completion && completionFor(state.query, item) === state.completion;
+    const address = completed ? item.url : typedUrl(entered);
     if (releaseCompletion()) render();
-    const text = state.query.trim();
     if (event.metaKey || event.ctrlKey) {
       if (state.mode === 'save') saveTarget();
-      else if (text) {
-        const url = typedUrl(text);
-        if (url) choose({ kind: 'url', url });
-        else notice('That isn’t a link. Type an address such as example.com.');
-      }
+      else if (entered) choose(address ? { kind: 'url', url: address } : { kind: 'search', query: entered });
     } else choose(state.items[state.selected]);
   } else if (event.key === 'Tab' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && state.mode !== 'actions') {
     event.preventDefault();
