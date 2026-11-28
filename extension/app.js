@@ -1,4 +1,4 @@
-import { completionFor, resultAction, urlKey, faviconUrl, flattenBookmarks, googleSearchUrl, historyItems, hostOf, searchItems, tabItems, typedItems, RECENT_FETCH, HISTORY_FETCH, HISTORY_LIMIT } from './search.js';
+import { completionFor, resultAction, urlKey, faviconUrl, flattenBookmarks, historyItems, hostOf, searchItems, tabItems, typedItems, typedUrl, RECENT_FETCH, HISTORY_FETCH, HISTORY_LIMIT } from './search.js';
 import { currentTab } from './navigation.js';
 
 const $ = id => document.getElementById(id);
@@ -679,7 +679,11 @@ input.addEventListener('keydown', event => {
     const text = state.query.trim();
     if (event.metaKey || event.ctrlKey) {
       if (state.mode === 'save') saveTarget();
-      else if (text) choose({ kind: 'url', url: googleSearchUrl(text) });
+      else if (text) {
+        const url = typedUrl(text);
+        if (url) choose({ kind: 'url', url });
+        else notice('That isn’t a link. Type an address such as example.com.');
+      }
     } else choose(state.items[state.selected]);
   } else if (event.key === 'Tab' && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && state.mode !== 'actions') {
     event.preventDefault();

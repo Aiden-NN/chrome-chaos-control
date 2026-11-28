@@ -5,7 +5,7 @@ A Manifest V3 keyboard launcher combining the functionality of `../chrome-tab-li
 ## Features
 
 - Search all open tabs, with exact matches first, local history suggestions, fuzzy matching and inline URL completion.
-- Type a URL to navigate, switch to an existing matching tab, or search the web with your browser's default engine. ⌘↵ / Ctrl+Enter searches Google using the typed text.
+- Type a URL to navigate, switch to an existing matching tab, or search the web with your browser's default engine. ⌘↵ / Ctrl+Enter opens the typed link, even when another result is selected. Text that isn’t a link shows a message instead.
 - Press Tab for actions: Search BookMark, Search history, Pin/Unpin tab, Bookmark, Mute/Unmute tab, Duplicate current tab, Close other tabs, and Update.
 - Browse and search bookmark folders. In Bookmark mode, Enter opens a folder, ⌘↵ saves the current page, and ⌥↵ creates a subfolder with the typed name.
 - Search browser history across all dates with an 80 ms debounce and Load more in batches of 100 candidates. Main-search history suggestions remain limited to 11.

@@ -61,10 +61,6 @@ export function tabItems(tabs, launcherUrl) {
   }));
 }
 
-export function googleSearchUrl(text = '') {
-  return `https://www.google.com/search?q=${encodeURIComponent(text.trim())}`;
-}
-
 export function faviconUrl(base, pageUrl, size = 32) {
   if (!/^https?:\/\//i.test(pageUrl || '')) return null;
   const url = new URL(base);
