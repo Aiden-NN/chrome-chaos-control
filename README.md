@@ -9,7 +9,7 @@ A Manifest V3 keyboard launcher combining the functionality of `../chrome-tab-li
 - Press Tab for actions: Search BookMark, Search history, Pin/Unpin tab, Bookmark, Mute/Unmute tab, Duplicate current tab, Close other tabs, and Update.
 - Browse and search bookmark folders. In Bookmark mode, Enter opens a folder, ⌘↵ saves the current page, and ⌥↵ creates a subfolder with the typed name.
 - Search browser history across all dates with an 80 ms debounce and Load more in batches of 100 candidates. Main-search history suggestions remain limited to 11.
-- ⌘K or the toolbar icon opens an overlay. Restricted browser pages, or an embedded launcher that does not respond within three seconds, use a centered popup window instead.
+- ⌘K or the toolbar icon opens an overlay. Restricted browser pages, or an embedded launcher that does not respond within three seconds, use a centered popup window instead. So does a page that still has no keyboard focus 250 ms after the shortcut, for example while docked DevTools has it; the shortcut reuses a launcher popup that is already open. With DevTools in its own window, focusing the browser window is enough and the overlay opens.
 - Dia Tab Line's dark colors, aurora background, colored result icons, animated selection and reduced-motion support.
 
 All source data stays in the browser. The extension includes no analytics or remote runtime dependencies. Permissions match Chrome Tab Line: `tabs`, `bookmarks`, `history`, `favicon`, `search`, `scripting`, and `activeTab`.

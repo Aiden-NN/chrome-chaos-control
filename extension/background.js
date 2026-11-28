@@ -41,6 +41,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 async function openWindow(windowId) {
+  const url = chrome.runtime.getURL('launcher.html?view=popup');
+  const open = (await chrome.tabs.query({ windowType: 'popup' })).find(tab => (tab.url || tab.pendingUrl) === url);
+  if (open) {
+    await chrome.windows.update(open.windowId, { focused: true });
+    return;
+  }
   const width = 640;
   const height = 600;
   const parent = await chrome.windows.get(windowId).catch(() => null);
@@ -53,6 +59,7 @@ async function openWindow(windowId) {
 
 async function openLauncher(tab) {
   try {
+    await chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['overlay.js'] });
   } catch {
     await openWindow(tab.windowId);

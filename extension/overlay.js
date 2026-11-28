@@ -14,6 +14,17 @@
     existing.dispatchEvent(new Event('chaos-control-close'));
     return;
   }
+  if (!document.hasFocus()) {
+    await new Promise(resolve => {
+      addEventListener('focus', resolve, { once: true });
+      setTimeout(resolve, 250);
+    });
+    if (!document.hasFocus()) {
+      chrome.runtime.sendMessage({ channel: 'chaos-control', type: 'overlay-failed' });
+      return;
+    }
+    if (document.getElementById('chaos-control-overlay-host')) return;
+  }
   const origin = new URL(chrome.runtime.getURL('')).origin;
   const previous = document.activeElement;
   const host = document.createElement('div');
